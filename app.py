@@ -75,10 +75,10 @@ else:
 
 st.divider()
 
-# --- 2. 歷史趨勢圖 (強制自適應 Y 軸) ---
+# --- 2. 歷史趨勢圖 (乾淨版：自動隱藏 timestamp 原始欄位) ---
 st.subheader("📊 歷史趨勢圖")
 
-limit = st.slider("顯示最近幾筆數據：", min_value=5, max_value=200, value=20, step=5)
+limit = st.slider("顯示最近幾筆數據：", min_value=5, max_value=200, value=30, step=5)
 
 history_data = fetch_json(FIREBASE_HISTORY_URL)
 
@@ -86,19 +86,21 @@ if history_data and isinstance(history_data, dict):
     records = list(history_data.values())
     df = pd.DataFrame(records)
 
+    # 1. 將 timestamp 轉成可讀的「時間」欄位
     if 'timestamp' in df.columns:
         df['時間'] = pd.to_datetime(df['timestamp'], unit='ms')
-        df = df.sort_values('時間')
-        # 移除時間重複的項目，避免最右邊出現折角
-        df = df.drop_duplicates(subset=['時間'])
+        # 轉完時間後，把原始整數 timestamp 欄位刪除，乾乾淨淨！
+        df = df.drop(columns=['timestamp'])
     else:
         df['時間'] = df.index
 
+    # 2. 移除重複時間點並按時間「正向排序」
+    df = df.drop_duplicates(subset=['時間']).sort_values('時間')
+
+    # 3. 截取最新 N 筆
     df_sub = df.tail(limit).copy()
 
-    # 繪製強迫適應 Y 軸高度的圖表函式
     def make_perfect_chart(dataframe, y_col, label_name, unit, color):
-        # 計算數據的最大與最小值，並加上緩衝區間，防止點被切掉
         y_min = dataframe[y_col].min()
         y_max = dataframe[y_col].max()
         padding = (y_max - y_min) * 0.2 if (y_max - y_min) > 0 else 1
@@ -111,7 +113,7 @@ if history_data and isinstance(history_data, dict):
             y=alt.Y(
                 f'{y_col}:Q', 
                 title=f'{label_name} ({unit})', 
-                scale=alt.Scale(domain=[domain_min, domain_max]) # 強制指定邊界，絕不從 0 開始
+                scale=alt.Scale(domain=[domain_min, domain_max])
             ),
             tooltip=[alt.Tooltip('時間:T', title='時間', format='%Y-%m-%d %H:%M:%S'), alt.Tooltip(f'{y_col}:Q', title=label_name)]
         )
@@ -139,5 +141,6 @@ if history_data and isinstance(history_data, dict):
     with tab4:
         if 'light' in df_sub.columns and not df_sub['light'].empty:
             st.altair_chart(make_perfect_chart(df_sub, 'light', '光照', 'ADC', '#FFA000'), use_container_width=True)
+
 else:
     st.info("💡 尚未讀取到歷史資料。")
