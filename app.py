@@ -14,12 +14,12 @@ def fetch_json(url):
     except:
         return None
 
+# --- 1. 即時數據概覽 ---
 st.title("🌍 即時數據監控概覽")
 
 if st.button("🔄 刷新數據"):
     st.rerun()
 
-# --- 1. 即時數據 ---
 data = fetch_json(FIREBASE_DATA_URL)
 col1, col2 = st.columns(2)
 
@@ -36,11 +36,11 @@ else:
 
 st.divider()
 
-# --- 2. 優化後的歷史趨勢圖 ---
-st.subheader("📊 歷史趨勢（精簡平滑版）")
+# --- 2. 歷史趨勢圖 ---
+st.subheader("📊 歷史趨勢圖")
 
-# 讓使用者可以在網頁上選擇要看幾筆
-limit = st.slider("顯示最近幾筆數據：", min_value=20, max_value=300, value=50, step=10)
+# 將預設筆數調低（例如預設 50 筆），線條會更清晰
+limit = st.slider("顯示最近幾筆數據：", min_value=10, max_value=600, value=50, step=10)
 
 history_data = fetch_json(FIREBASE_HISTORY_URL)
 
@@ -48,15 +48,16 @@ if history_data and isinstance(history_data, dict):
     records = list(history_data.values())
     df = pd.DataFrame(records)
 
-    # 1. 取出最新的 N 筆資料 (預設 50 筆)
-    df = df.tail(limit)
-
-    # 2. 如果有 timestamp 就轉成時間格式
+    # 1. 整理時間 X 軸
     if 'timestamp' in df.columns:
         df['時間'] = pd.to_datetime(df['timestamp'], unit='ms')
+        df = df.sort_values('時間')
         df = df.set_index('時間')
 
-    # 重命名欄位
+    # 2. 截取最近 N 筆
+    df = df.tail(limit)
+
+    # 3. 欄位改名
     df = df.rename(columns={
         'temp': '溫度 (°C)',
         'hum': '濕度 (%)',
@@ -64,7 +65,7 @@ if history_data and isinstance(history_data, dict):
         'light': '光照 (ADC)'
     })
 
-    # 使用分頁讓圖表更大、更清楚
+    # 4. 分頁切換檢視
     tab1, tab2, tab3, tab4 = st.tabs(["🌡️ 溫度", "💧 濕度", "🌪️ 氣壓", "☀️ 光照"])
 
     with tab1:
