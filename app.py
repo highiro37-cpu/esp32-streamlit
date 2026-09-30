@@ -27,27 +27,16 @@ if st.button("🔄 刷新數據"):
 data = fetch_json(FIREBASE_DATA_URL)
 col1, col2 = st.columns(2)
 
+# 初始化狀態
+is_online = False
+last_update_str = "未知"
+
 if data and isinstance(data, dict):
-    temp_val = data.get('temp', '--')
-    pres_val = data.get('pres', '--')
-    hum_val = data.get('hum', '--')
-    light_val = data.get('light', '--')
     ts = data.get('timestamp', None)
 
-    # 顯示數值卡片
-    with col1:
-        st.metric(label="🌡️ 溫度", value=f"{temp_val} °C")
-        st.metric(label="🌪️ 氣壓", value=f"{pres_val} hPa")
-    with col2:
-        st.metric(label="💧 濕度", value=f"{hum_val} %")
-        st.metric(label="☀️ 光照", value=f"{light_val} Lux")
-
     # ---------------------------------------------------------
-    # ⏱️ 檢查是否「離線」：比較 timestamp 與當前系統時間 (判定 60 秒)
+    # ⏱️ 離線判定：比較 timestamp 與當前系統時間 (判定 60 秒)
     # ---------------------------------------------------------
-    is_online = False
-    last_update_str = "未知"
-
     if ts:
         # 如果 timestamp 是毫秒 (13位數)，除以 1000 換算成秒
         ts_sec = ts / 1000.0 if ts > 1e11 else ts
@@ -60,14 +49,37 @@ if data and isinstance(data, dict):
         if (now_sec - ts_sec) < 60:
             is_online = True
 
+    # 根據連線狀態決定顯示的數值或 '--'
+    if is_online:
+        temp_val = f"{data.get('temp', '--')} °C"
+        pres_val = f"{data.get('pres', '--')} hPa"
+        hum_val = f"{data.get('hum', '--')} %"
+        light_val = f"{data.get('light', '--')} Lux"
+    else:
+        temp_val = "-- °C"
+        pres_val = "-- hPa"
+        hum_val = "-- %"
+        light_val = "-- Lux"
+
+    # 顯示數值卡片
+    with col1:
+        st.metric(label="🌡️️ 溫度", value=temp_val)
+        st.metric(label="🌪️ 氣壓", value=pres_val)
+    with col2:
+        st.metric(label="💧 濕度", value=hum_val)
+        st.metric(label="☀️ 光照", value=light_val)
+
+    # 狀態提示標籤
     if is_online:
         st.success(f"🟢 設備連線正常 (最後更新：{last_update_str})")
     else:
         st.error(f"🔴 設備已離線 / 斷線 (最後更新：{last_update_str})")
+
 else:
+    # 完全抓不到 JSON 資料時的退路
     with col1:
         st.metric(label="🌡️ 溫度", value="-- °C")
-        st.metric(label="🌪️ 氣壓", value="-- hPa")
+        st.metric(label="🌪️️ 氣壓", value="-- hPa")
     with col2:
         st.metric(label="💧 濕度", value="-- %")
         st.metric(label="☀️ 光照", value="-- Lux")
@@ -75,7 +87,7 @@ else:
 
 st.divider()
 
-# --- 2. 歷史趨勢圖 ---
+# --- 2. 歷史趨勢圖 (離線時歷史圖表依然可供查閱) ---
 st.subheader("📊 歷史趨勢圖")
 
 limit = st.slider("顯示最近幾筆數據：", min_value=5, max_value=200, value=20, step=5)
