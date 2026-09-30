@@ -3,13 +3,9 @@ import pandas as pd
 import requests
 import altair as alt
 import time
-from streamlit_autorefresh import st_autorefresh
 
 # 設定頁面
 st.set_page_config(page_title="ESP32 環境監控", page_icon="🌍", layout="centered")
-
-# ⏱️ 每 60,000 毫秒 (1 分鐘) 自動刷新一次頁面
-st_autorefresh(interval=60000, key="datarefresh")
 
 # Firebase 網址
 FIREBASE_DATA_URL = "https://project-6542053176802607257-default-rtdb.asia-southeast1.firebasedatabase.app/data.json"
@@ -24,6 +20,9 @@ def fetch_json(url):
 
 # --- 1. 即時數據概覽 ---
 st.title("🌍 即時數據監控概覽")
+
+if st.button("🔄 立即手動刷新"):
+    st.rerun()
 
 data = fetch_json(FIREBASE_DATA_URL)
 col1, col2 = st.columns(2)
@@ -86,7 +85,6 @@ if history_data and isinstance(history_data, dict):
     records = list(history_data.values())
     df = pd.DataFrame(records)
 
-    # 時間格式處理與去重
     if 'timestamp' in df.columns:
         df['時間'] = pd.to_datetime(df['timestamp'], unit='ms')
         df = df.drop(columns=['timestamp'])
@@ -132,7 +130,7 @@ if history_data and isinstance(history_data, dict):
 
         return (area + line + points).properties(height=260)
 
-    tab1, tab2, tab3, tab4 = st.tabs(["🌡️ 溫度", "💧 濕度", "🌪️ 氣壓", "☀️ 光照"])
+    tab1, tab2, tab3, tab4 = st.tabs(["🌡️ 溫度", "💧 濕度", "🌪️️ 氣壓", "☀️ 光照"])
 
     with tab1:
         if 'temp' in df_sub.columns and not df_sub['temp'].empty:
@@ -152,3 +150,7 @@ if history_data and isinstance(history_data, dict):
 
 else:
     st.info("💡 尚未讀取到歷史資料。")
+
+# ⏱️ 放置於最底部的倒數自動重載 (倒數 60 秒後全自動刷新頁面)
+time.sleep(60)
+st.rerun()
