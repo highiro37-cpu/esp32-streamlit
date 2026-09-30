@@ -3,9 +3,13 @@ import pandas as pd
 import requests
 import altair as alt
 import time
+from streamlit_autorefresh import st_autorefresh
 
 # 設定頁面
 st.set_page_config(page_title="ESP32 環境監控", page_icon="🌍", layout="centered")
+
+# ⏱️ 每 60,000 毫秒 (1 分鐘) 自動刷新一次頁面
+st_autorefresh(interval=60000, key="datarefresh")
 
 # Firebase 網址
 FIREBASE_DATA_URL = "https://project-6542053176802607257-default-rtdb.asia-southeast1.firebasedatabase.app/data.json"
@@ -21,9 +25,6 @@ def fetch_json(url):
 # --- 1. 即時數據概覽 ---
 st.title("🌍 即時數據監控概覽")
 
-if st.button("🔄 刷新數據"):
-    st.rerun()
-
 data = fetch_json(FIREBASE_DATA_URL)
 col1, col2 = st.columns(2)
 
@@ -38,6 +39,7 @@ if data and isinstance(data, dict):
         last_update_str = pd.to_datetime(ts_sec, unit='s', utc=True).tz_convert('Asia/Taipei').strftime('%Y/%m/%d %H:%M:%S')
 
         now_sec = time.time()
+        # 判定 60 秒內有新數據為連線
         if (now_sec - ts_sec) < 60:
             is_online = True
 
@@ -84,7 +86,7 @@ if history_data and isinstance(history_data, dict):
     records = list(history_data.values())
     df = pd.DataFrame(records)
 
-    # 1. 時間格式處理與去重
+    # 時間格式處理與去重
     if 'timestamp' in df.columns:
         df['時間'] = pd.to_datetime(df['timestamp'], unit='ms')
         df = df.drop(columns=['timestamp'])
@@ -93,9 +95,8 @@ if history_data and isinstance(history_data, dict):
 
     df = df.drop_duplicates(subset=['時間']).sort_values('時間')
 
-    # 2. 取得資料庫實際總筆數，動態設定滑桿最大值
     total_records = len(df)
-    default_value = min(30, total_records) # 預設載入 30 筆，若資料不足 30 筆則取總筆數
+    default_value = min(30, total_records)
 
     limit = st.slider(
         f"顯示最近數據筆數（當前共 {total_records} 筆歷史紀錄）：", 
@@ -105,7 +106,6 @@ if history_data and isinstance(history_data, dict):
         step=1
     )
 
-    # 3. 根據滑桿數值截取最新 N 筆
     df_sub = df.tail(limit).copy()
 
     def make_perfect_chart(dataframe, y_col, label_name, unit, color):
