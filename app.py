@@ -90,22 +90,35 @@ st.divider()
 
 # --- 3. 模擬歷史趨勢圖數據 ---
 chart_data = pd.DataFrame({
-    '筆數': [f"第 {i} 筆" for i in range(1, 16)],
+    '筆數': [f"第 {i:02d} 筆" for i in range(1, 16)],
+    'timestamp': pd.date_range(end=pd.Timestamp.now(), periods=15, freq='min'),
     '溫度 (°C)': [25.4, 25.4, 25.4, 25.5, 25.4, 25.5, 25.5, 25.3, 25.1, 25.2, 29.8, 29.7, 30.1, 30.0, 30.2],
     '濕度 (%)': [63.2, 63.8, 62.8, 63.5, 62.3, 62.7, 62.4, 62.1, 62.1, 62.2, 62.5, 79.2, 77.1, 76.5, 75.0],
     '氣壓 (hPa)': [1006.0, 1005.0, 1005.0, 1005.0, 1005.0, 1005.0, 1005.0, 1005.0, 1005.0, 1005.0, 1005.0, 1005.0, 1006.0, 1006.0, 1006.0],
     '光照 (ADC)': [1130, 1170, 1320, 1040, 1140, 1120, 1300, 1280, 1120, 1150, 1060, 1300, 1330, 730, 770]
-}).set_index('筆數')
+})
+latest_chart_data = chart_data.tail(15)
+use_timestamp_axis = st.toggle("溫濕度圖表使用時間 X 軸 (time/timestamp)", value=False)
+
+if use_timestamp_axis:
+    temp_chart_data = latest_chart_data.set_index('timestamp')['溫度 (°C)']
+    humi_chart_data = latest_chart_data.set_index('timestamp')['濕度 (%)']
+else:
+    temp_chart_data = latest_chart_data.set_index('筆數')['溫度 (°C)']
+    humi_chart_data = latest_chart_data.set_index('筆數')['濕度 (%)']
+
+press_chart_data = latest_chart_data.set_index('筆數')['氣壓 (hPa)']
+light_chart_data = latest_chart_data.set_index('筆數')['光照 (ADC)']
 
 # --- 4. 繪製四大歷史趨勢圖 ---
 st.subheader("🌡️ 歷史溫度趨勢 (°C)")
-st.line_chart(chart_data['溫度 (°C)'], color="#FF4B4B")
+st.line_chart(temp_chart_data, color="#FF4B4B")
 
 st.subheader("💧 歷史濕度趨勢 (%)")
-st.line_chart(chart_data['濕度 (%)'], color="#1E88E5")
+st.line_chart(humi_chart_data, color="#1E88E5")
 
 st.subheader("🌪️ 歷史氣壓趨勢 (hPa)")
-st.line_chart(chart_data['氣壓 (hPa)'], color="#9C27B0")
+st.line_chart(press_chart_data, color="#9C27B0")
 
 st.subheader("☀️ 歷史光照強度趨勢 (ADC)")
-st.line_chart(chart_data['光照 (ADC)'], color="#FFA000")
+st.line_chart(light_chart_data, color="#FFA000")
