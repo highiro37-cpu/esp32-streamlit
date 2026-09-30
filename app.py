@@ -75,10 +75,8 @@ else:
 
 st.divider()
 
-# --- 2. 歷史趨勢圖 (乾淨版：自動隱藏 timestamp 原始欄位) ---
+# --- 2. 歷史趨勢圖 (動態滑桿上限) ---
 st.subheader("📊 歷史趨勢圖")
-
-limit = st.slider("顯示最近幾筆數據：", min_value=5, max_value=200, value=30, step=5)
 
 history_data = fetch_json(FIREBASE_HISTORY_URL)
 
@@ -86,18 +84,28 @@ if history_data and isinstance(history_data, dict):
     records = list(history_data.values())
     df = pd.DataFrame(records)
 
-    # 1. 將 timestamp 轉成可讀的「時間」欄位
+    # 1. 時間格式處理與去重
     if 'timestamp' in df.columns:
         df['時間'] = pd.to_datetime(df['timestamp'], unit='ms')
-        # 轉完時間後，把原始整數 timestamp 欄位刪除，乾乾淨淨！
         df = df.drop(columns=['timestamp'])
     else:
         df['時間'] = df.index
 
-    # 2. 移除重複時間點並按時間「正向排序」
     df = df.drop_duplicates(subset=['時間']).sort_values('時間')
 
-    # 3. 截取最新 N 筆
+    # 2. 取得資料庫實際總筆數，動態設定滑桿最大值
+    total_records = len(df)
+    default_value = min(30, total_records) # 預設載入 30 筆，若資料不足 30 筆則取總筆數
+
+    limit = st.slider(
+        f"顯示最近數據筆數（當前共 {total_records} 筆歷史紀錄）：", 
+        min_value=min(5, total_records), 
+        max_value=total_records, 
+        value=default_value, 
+        step=1
+    )
+
+    # 3. 根據滑桿數值截取最新 N 筆
     df_sub = df.tail(limit).copy()
 
     def make_perfect_chart(dataframe, y_col, label_name, unit, color):
