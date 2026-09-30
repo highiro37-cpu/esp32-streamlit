@@ -152,5 +152,5 @@ else:
     st.info("💡 尚未讀取到歷史資料。")
 
 # ⏱️ 放置於最底部的倒數自動重載 (倒數 60 秒後全自動刷新頁面)
-time.sleep(60)
+time.sleep(10)
 st.rerun()
