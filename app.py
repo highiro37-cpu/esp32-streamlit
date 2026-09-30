@@ -21,6 +21,19 @@ def fetch_data():
     except Exception:
         return None
 
+def parse_door_sensor_status(raw_status):
+    if isinstance(raw_status, bool):
+        return raw_status
+    if isinstance(raw_status, (int, float)):
+        return raw_status != 0
+    if isinstance(raw_status, str):
+        normalized = raw_status.strip().lower()
+        if normalized in {"1", "true", "on", "open", "opened", "開", "開啟"}:
+            return True
+        if normalized in {"0", "false", "off", "close", "closed", "關", "關閉"}:
+            return False
+    return None
+
 # --- 1. 標題區塊 ---
 st.title("🌍 即時數據監控概覽")
 
@@ -33,12 +46,14 @@ data = fetch_data()
 
 # --- 2. 即時數據指標卡片 (溫度、濕度、氣壓、光照) ---
 col1, col2 = st.columns(2)
+door_status = None
 
 if data and isinstance(data, dict):
     temp_val = data.get('temp', '--')
     humi_val = data.get('humi', '--')
     press_val = data.get('press', '--')
     light_val = data.get('light', '--')
+    door_status = parse_door_sensor_status(data.get('door'))
 
     with col1:
         st.metric(label="🌡️ 溫度", value=f"{temp_val} °C")
@@ -59,6 +74,17 @@ else:
         st.metric(label="☀️ 光照", value="-- Lux")
 
     st.error("🔴 設備已離線 / 斷線")
+
+st.subheader("🚪 門禁感測器狀態")
+if door_status is None:
+    st.toggle("門禁開關", value=False, disabled=True)
+    st.caption("目前無門禁感測器資料")
+elif door_status:
+    st.toggle("門禁開關", value=True, disabled=True)
+    st.success("門禁目前：開啟")
+else:
+    st.toggle("門禁開關", value=False, disabled=True)
+    st.info("門禁目前：關閉")
 
 st.divider()
 
